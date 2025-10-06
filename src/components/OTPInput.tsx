@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import React, { useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 interface OTPInputProps {
   length?: number;
@@ -16,82 +16,96 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   isInvalid = false,
   autoFocus = true,
 }) => {
-  const [otp, setOtp] = useState<string[]>(Array(length).fill(''));
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const inputRef = useRef<TextInput>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
-  useEffect(() => {
-    if (autoFocus && inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
-  }, [autoFocus]);
-
-  const handleChange = (text: string, index: number) => {
-    if (text && !/^\d$/.test(text)) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = text;
-    setOtp(newOtp);
-
-    if (text && index < length - 1) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    onChange(newOtp.join(''));
+  const handleChangeText = (text: string) => {
+    // Only allow digits
+    const cleaned = text.replace(/[^\d]/g, "");
+    onChange(cleaned.slice(0, length));
   };
 
-  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
-    if (e.nativeEvent.key === 'Backspace') {
-      const newOtp = [...otp];
-      newOtp[index] = '';
-      setOtp(newOtp);
-
-      if (index > 0) {
-        inputRefs.current[index - 1]?.focus();
-      }
-
-      onChange(newOtp.join(''));
-    }
+  const handlePress = () => {
+    inputRef.current?.focus();
   };
+
+  // Split value into individual digits
+  const digits = value.split("");
+  while (digits.length < length) {
+    digits.push("");
+  }
 
   return (
     <View style={styles.container}>
-      {Array.from({ length }).map((_, index) => (
-        <TextInput
-          key={index}
-          ref={(ref) => (inputRefs.current[index] = ref)}
-          style={[styles.input, isInvalid && styles.inputError]}
-          defaultValue=""
-          onChangeText={(text) => handleChange(text, index)}
-          onKeyPress={(e) => handleKeyPress(e, index)}
-          keyboardType="number-pad"
-          maxLength={1}
-          textAlign="center"
-          textContentType="oneTimeCode"
-          autoComplete="sms-otp"
-        />
-      ))}
+      {/* Hidden input that captures all text */}
+      <TextInput
+        ref={inputRef}
+        value={value}
+        onChangeText={handleChangeText}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        keyboardType="number-pad"
+        maxLength={length}
+        autoFocus={autoFocus}
+        style={styles.hiddenInput}
+        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
+      />
+
+      {/* Visible boxes */}
+      <View style={styles.boxesContainer}>
+        {digits.map((digit, index) => (
+          <Pressable
+            key={index}
+            onPress={handlePress}
+            style={[
+              styles.box,
+              isInvalid && styles.boxError,
+              isFocused && index === value.length && styles.boxActive,
+            ]}
+          >
+            <Text style={styles.digit}>{digit}</Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
+    position: "relative",
   },
-  input: {
+  hiddenInput: {
+    position: "absolute",
+    opacity: 0,
+    width: 1,
+    height: 1,
+  },
+  boxesContainer: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  box: {
     width: 56,
     height: 56,
     borderWidth: 2,
-    borderColor: '#3f3f46',
+    borderColor: "#3f3f46",
     borderRadius: 8,
-    backgroundColor: '#000000',
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: '600',
+    backgroundColor: "#000000",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  inputError: {
-    borderColor: '#ef4444',
+  boxActive: {
+    borderColor: "#8b5cf6",
+  },
+  boxError: {
+    borderColor: "#ef4444",
+  },
+  digit: {
+    color: "#ffffff",
+    fontSize: 24,
+    fontWeight: "600",
   },
 });
