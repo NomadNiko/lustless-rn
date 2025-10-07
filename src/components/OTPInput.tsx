@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useThemeColor } from "@/hooks/use-theme-color";
 
 interface OTPInputProps {
   length?: number;
@@ -18,15 +19,41 @@ export const OTPInput: React.FC<OTPInputProps> = ({
 }) => {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [selection, setSelection] = useState({ start: value.length, end: value.length });
+
+  const otpBorder = useThemeColor({}, "otpBorder");
+  const otpBorderActive = useThemeColor({}, "otpBorderActive");
+  const otpBorderError = useThemeColor({}, "otpBorderError");
+  const otpBackground = useThemeColor({}, "otpBackground");
+  const otpText = useThemeColor({}, "otpText");
 
   const handleChangeText = (text: string) => {
     // Only allow digits
     const cleaned = text.replace(/[^\d]/g, "");
-    onChange(cleaned.slice(0, length));
+    const newValue = cleaned.slice(0, length);
+    onChange(newValue);
+
+    // Update selection to end of input
+    const newPosition = newValue.length;
+    setSelection({ start: newPosition, end: newPosition });
   };
 
-  const handlePress = () => {
+  const handlePress = (index?: number) => {
     inputRef.current?.focus();
+
+    // On iOS, allow tapping specific digit to edit from that position
+    if (Platform.OS === 'ios' && index !== undefined) {
+      const position = Math.min(index, value.length);
+      setSelection({ start: position, end: position });
+    }
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    // Announce for screen readers
+    AccessibilityInfo.announceForAccessibility(
+      `OTP input field. ${value.length} of ${length} digits entered${isInvalid ? '. Invalid code' : ''}`
+    );
   };
 
   // Split value into individual digits
@@ -36,13 +63,20 @@ export const OTPInput: React.FC<OTPInputProps> = ({
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityRole="none"
+      accessibilityLabel={`One-time password input. ${length} digits required. ${value.length} of ${length} entered.`}
+      accessibilityHint="Enter the verification code sent to your device"
+      accessibilityState={{ disabled: false }}
+    >
       {/* Hidden input that captures all text */}
       <TextInput
         ref={inputRef}
         value={value}
         onChangeText={handleChangeText}
-        onFocus={() => setIsFocused(true)}
+        onFocus={handleFocus}
         onBlur={() => setIsFocused(false)}
         keyboardType="number-pad"
         maxLength={length}
@@ -50,23 +84,36 @@ export const OTPInput: React.FC<OTPInputProps> = ({
         style={styles.hiddenInput}
         textContentType="oneTimeCode"
         autoComplete="sms-otp"
+        selection={selection}
+        onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+        accessible={false}
+        importantForAccessibility="no"
       />
 
       {/* Visible boxes */}
       <View style={styles.boxesContainer}>
-        {digits.map((digit, index) => (
-          <Pressable
-            key={index}
-            onPress={handlePress}
-            style={[
-              styles.box,
-              isInvalid && styles.boxError,
-              isFocused && index === value.length && styles.boxActive,
-            ]}
-          >
-            <Text style={styles.digit}>{digit}</Text>
-          </Pressable>
-        ))}
+        {digits.map((digit, index) => {
+          const isActive = isFocused && index === value.length;
+          const borderColor = isInvalid ? otpBorderError : isActive ? otpBorderActive : otpBorder;
+
+          return (
+            <Pressable
+              key={index}
+              onPress={() => handlePress(index)}
+              style={[
+                styles.box,
+                {
+                  borderColor,
+                  backgroundColor: otpBackground
+                }
+              ]}
+              accessible={false}
+              importantForAccessibility="no"
+            >
+              <Text style={[styles.digit, { color: otpText }]}>{digit}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -91,20 +138,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderWidth: 2,
-    borderColor: "#3f3f46",
     borderRadius: 8,
-    backgroundColor: "#000000",
     justifyContent: "center",
     alignItems: "center",
   },
-  boxActive: {
-    borderColor: "#8b5cf6",
-  },
-  boxError: {
-    borderColor: "#ef4444",
-  },
   digit: {
-    color: "#ffffff",
     fontSize: 24,
     fontWeight: "600",
   },
