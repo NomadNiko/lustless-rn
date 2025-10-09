@@ -3,6 +3,9 @@ import { useRouter } from 'expo-router';
 import { ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { useFilesUploadService } from '@/src/services/api/services/files';
+import HTTP_CODES_ENUM from '@/src/services/api/types/http-codes';
+import { setOnboardingData } from '@/src/services/auth/onboarding-storage';
 import { VStack } from '@/components/ui/vstack';
 import { HStack } from '@/components/ui/hstack';
 import { Box } from '@/components/ui/box';
@@ -26,8 +29,13 @@ export default function Step2Screen() {
   const router = useRouter();
   const cameraRef = useRef<any>(null);
   const [idImage, setIdImage] = useState<string | null>(null);
+  const [idDocumentId, setIdDocumentId] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
+
+  const uploadFile = useFilesUploadService();
 
   const handleOpenCamera = async () => {
     if (!permission?.granted) {
@@ -76,12 +84,58 @@ export default function Step2Screen() {
 
       setIdImage(croppedPhoto.uri);
       setShowCamera(false);
+
+      // Upload immediately after capture
+      await uploadIdDocument(croppedPhoto.uri);
     }
   };
 
-  const handleContinue = () => {
-    if (!idImage) return;
-    router.push('/(auth)/sign-up/step3');
+  const handleContinue = async () => {
+    if (!idImage || !idDocumentId) return;
+
+    // ID is already uploaded, pass ID to next screen
+    router.push({
+      pathname: '/(auth)/sign-up/step3',
+      params: { idDocumentId },
+    });
+  };
+
+  const uploadIdDocument = async (uri: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      const filename = uri.split('/').pop() || 'id-document.jpg';
+
+      formData.append('file', {
+        uri,
+        name: filename,
+        type: 'image/jpeg',
+      } as any);
+
+      const response = await uploadFile(formData);
+
+      if (response.status === HTTP_CODES_ENUM.OK || response.status === HTTP_CODES_ENUM.CREATED) {
+        const { data } = response;
+        const docId = data.file.id;
+        setIdDocumentId(docId);
+
+        // Persist to storage for step3
+        await setOnboardingData({ idDocumentId: docId });
+        console.log('ID document uploaded and saved:', docId);
+      } else {
+        console.error('Upload failed:', response);
+        setError('Failed to upload ID document. Please try again.');
+        setIdImage(null);
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+      setIdImage(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (showCamera) {
@@ -148,10 +202,12 @@ export default function Step2Screen() {
           <Button
             size="lg"
             onPress={handleContinue}
-            isDisabled={!idImage}
+            isDisabled={!idImage || loading || !idDocumentId}
             className="flex-1"
           >
-            <ButtonText className="font-outfit-semibold">Continue</ButtonText>
+            <ButtonText className="font-outfit-semibold">
+              {loading ? 'Uploading...' : 'Continue'}
+            </ButtonText>
           </Button>
         </HStack>
 

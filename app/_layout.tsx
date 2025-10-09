@@ -18,13 +18,10 @@ import { useEffect } from "react";
 
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import "@/global.css";
+import AuthProvider from "@/src/services/auth/auth-provider";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
-
-export const unstable_settings = {
-  initialRouteName: "(auth)",
-};
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -47,15 +44,17 @@ export default function RootLayout() {
   return (
     <GluestackUIProvider mode="dark">
       <ThemeProvider value={DarkTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
-          />
-        </Stack>
-        <StatusBar style="light" />
+        <AuthProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="modal"
+              options={{ presentation: "modal", title: "Modal" }}
+            />
+          </Stack>
+          <StatusBar style="light" />
+        </AuthProvider>
       </ThemeProvider>
     </GluestackUIProvider>
   );

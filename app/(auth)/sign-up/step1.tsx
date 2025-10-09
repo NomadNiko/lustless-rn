@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { VStack } from '@/components/ui/vstack';
-import { HStack } from '@/components/ui/hstack';
 import { Heading } from '@/components/ui/heading';
 import { Text } from '@/components/ui/text';
 import { Input, InputField, InputSlot, InputIcon } from '@/components/ui/input';
@@ -11,6 +10,9 @@ import { Checkbox, CheckboxIndicator, CheckboxIcon, CheckboxLabel } from '@/comp
 import { FormControl, FormControlError, FormControlErrorText } from '@/components/ui/form-control';
 import { EyeIcon, EyeOffIcon } from '@/components/ui/icon';
 import { CheckIcon } from '@/components/ui/icon';
+import { useAuthSignupStep1Service } from '@/src/services/api/services/auth';
+import { AuthTokensContext, AuthActionsContext } from '@/src/services/auth/auth-context';
+import HTTP_CODES_ENUM from '@/src/services/api/types/http-codes';
 
 export default function Step1Screen() {
   const router = useRouter();
@@ -18,12 +20,15 @@ export default function Step1Screen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-
-  // Mock validation
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; terms?: string }>({});
 
-  const handleContinue = () => {
-    // Mock validation
+  const signupStep1 = useAuthSignupStep1Service();
+  const { setTokensInfo } = useContext(AuthTokensContext);
+  const { loadData } = useContext(AuthActionsContext);
+
+  const handleContinue = async () => {
+    // Client-side validation
     const newErrors: typeof errors = {};
 
     if (!email) {
@@ -47,9 +52,39 @@ export default function Step1Screen() {
       return;
     }
 
-    // Clear errors and proceed
+    setLoading(true);
     setErrors({});
-    router.push('/(auth)/sign-up/step2');
+
+    try {
+      const response = await signupStep1({ email, password });
+
+      if (response.status === HTTP_CODES_ENUM.OK || response.status === HTTP_CODES_ENUM.CREATED) {
+        const { data } = response;
+        console.log('Signup successful, setting tokens...');
+        // Save tokens immediately - user is logged in but unverified
+        setTokensInfo({
+          token: data.token,
+          refreshToken: data.refreshToken,
+          tokenExpires: data.tokenExpires,
+        });
+
+        // Reload user data with new tokens
+        console.log('Reloading user data...');
+        const { user: loadedUser } = await loadData();
+        console.log('User data loaded:', loadedUser, 'proceeding to step 2');
+
+        router.push('/(auth)/sign-up/step2');
+      } else if ('data' in response && response.data?.message) {
+        const message = Array.isArray(response.data.message)
+          ? response.data.message[0]
+          : response.data.message;
+        setErrors({ email: message || 'Signup failed' });
+      }
+    } catch (error) {
+      setErrors({ email: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -163,8 +198,9 @@ export default function Step1Screen() {
             size="xl"
             onPress={handleContinue}
             className="w-full"
+            isDisabled={loading}
           >
-            <ButtonText className="font-outfit-semibold">Continue</ButtonText>
+            <ButtonText className="font-outfit-semibold">{loading ? 'Creating Account...' : 'Continue'}</ButtonText>
           </Button>
 
           {/* Sign In Link */}

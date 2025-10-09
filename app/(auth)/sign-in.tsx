@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,10 @@ import { FormControl, FormControlError, FormControlErrorText } from '@/component
 import { EyeIcon, EyeOffIcon } from '@/components/ui/icon';
 import { Image } from '@/components/ui/image';
 import { OTPInput } from '@/src/components/OTPInput';
+import { useAuthInitiateLoginService, useAuthVerifyLoginService } from '@/src/services/api/services/auth';
+import { AuthTokensContext, AuthActionsContext, AuthContext } from '@/src/services/auth/auth-context';
+import HTTP_CODES_ENUM from '@/src/services/api/types/http-codes';
+import { getVerificationRoute } from '@/src/services/auth/use-verification-routing';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -20,10 +24,16 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; otp?: string }>({});
 
-  const handleSignIn = () => {
-    // Mock validation
+  const initiateLogin = useAuthInitiateLoginService();
+  const verifyLogin = useAuthVerifyLoginService();
+  const { setTokensInfo } = useContext(AuthTokensContext);
+  const { loadData } = useContext(AuthActionsContext);
+
+  const handleSignIn = async () => {
+    // Client-side validation
     const newErrors: typeof errors = {};
 
     if (!email) {
@@ -41,21 +51,91 @@ export default function SignInScreen() {
       return;
     }
 
-    // Mock: In real app, call initiateLogin API
-    // If user is fully verified, show OTP screen
+    setLoading(true);
     setErrors({});
-    setShowOTP(true);
+
+    try {
+      const response = await initiateLogin({ email, password });
+
+      if (response.status === HTTP_CODES_ENUM.OK) {
+        const { data } = response;
+
+        if (data.skipOtp && data.loginData) {
+          // Skip OTP, login directly with tokens
+          console.log('Login successful without OTP, setting tokens...');
+          setTokensInfo({
+            token: data.loginData.token,
+            refreshToken: data.loginData.refreshToken,
+            tokenExpires: data.loginData.tokenExpires,
+          });
+
+          // Reload user data with new tokens
+          console.log('Reloading user data...');
+          const { user: loadedUser, verificationStatus: loadedVerificationStatus } = await loadData();
+          console.log('User data loaded:', loadedUser);
+
+          // Navigate to correct route based on verification status
+          const route = getVerificationRoute(loadedUser, loadedVerificationStatus);
+          console.log('Navigating to:', route);
+          router.replace(route);
+        } else {
+          // Show OTP screen
+          setShowOTP(true);
+        }
+      } else if ('data' in response && response.data?.message) {
+        const message = Array.isArray(response.data.message)
+          ? response.data.message[0]
+          : response.data.message;
+        setErrors({ email: message || 'Login failed' });
+      }
+    } catch (error) {
+      setErrors({ email: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otp.length !== 6) {
       setErrors({ otp: 'Please enter the complete 6-digit code' });
       return;
     }
 
-    // Mock: In real app, call verifyLogin API
-    // On success, navigate to main app
-    router.replace('/(tabs)');
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const response = await verifyLogin({ email, otpCode: otp });
+
+      if (response.status === HTTP_CODES_ENUM.OK) {
+        const { data } = response;
+        console.log('OTP verification successful, setting tokens...');
+        setTokensInfo({
+          token: data.token,
+          refreshToken: data.refreshToken,
+          tokenExpires: data.tokenExpires,
+        });
+
+        // Reload user data with new tokens
+        console.log('Reloading user data...');
+        const { user: loadedUser, verificationStatus: loadedVerificationStatus } = await loadData();
+        console.log('User data loaded:', loadedUser);
+
+        // Navigate to correct route based on verification status
+        const route = getVerificationRoute(loadedUser, loadedVerificationStatus);
+        console.log('Navigating to:', route);
+        router.replace(route);
+      } else if ('data' in response && response.data?.message) {
+        const message = Array.isArray(response.data.message)
+          ? response.data.message[0]
+          : response.data.message;
+        setErrors({ otp: message || 'Invalid OTP code' });
+      }
+    } catch (error) {
+      setErrors({ otp: 'Network error. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -188,8 +268,8 @@ export default function SignInScreen() {
             <VStack space="md">
               {!showOTP ? (
                 <>
-                  <Button size="xl" onPress={handleSignIn} className="w-full">
-                    <ButtonText className="font-outfit-semibold">Sign In</ButtonText>
+                  <Button size="xl" onPress={handleSignIn} className="w-full" isDisabled={loading}>
+                    <ButtonText className="font-outfit-semibold">{loading ? 'Signing In...' : 'Sign In'}</ButtonText>
                   </Button>
 
                   <Text size="md" className="text-center text-typography-500 font-outfit">
@@ -207,10 +287,10 @@ export default function SignInScreen() {
                   <Button
                     size="xl"
                     onPress={handleVerifyOTP}
-                    isDisabled={otp.length !== 6}
+                    isDisabled={otp.length !== 6 || loading}
                     className="w-full"
                   >
-                    <ButtonText className="font-outfit-semibold">Verify & Sign In</ButtonText>
+                    <ButtonText className="font-outfit-semibold">{loading ? 'Verifying...' : 'Verify & Sign In'}</ButtonText>
                   </Button>
 
                   <Button

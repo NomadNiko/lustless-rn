@@ -11,6 +11,9 @@ import { FormControl, FormControlError, FormControlErrorText } from '@/component
 import { Alert, AlertIcon, AlertText } from '@/components/ui/alert';
 import { InfoIcon } from '@/components/ui/icon';
 import { OTPInput } from '@/src/components/OTPInput';
+import { useAuthPhoneInitiateService, useAuthPhoneVerifyService } from '@/src/services/api/services/auth';
+import HTTP_CODES_ENUM from '@/src/services/api/types/http-codes';
+import { clearOnboardingData } from '@/src/services/auth/onboarding-storage';
 
 export default function Step4Screen() {
   const router = useRouter();
@@ -19,6 +22,10 @@ export default function Step4Screen() {
   const [otp, setOtp] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const phoneInitiate = useAuthPhoneInitiateService();
+  const phoneVerify = useAuthPhoneVerifyService();
 
   // Mock countdown timer for resend
   useEffect(() => {
@@ -28,38 +35,82 @@ export default function Step4Screen() {
     }
   }, [resendTimer]);
 
-  const handleSendOTP = () => {
-    // Mock validation
+  const handleSendOTP = async () => {
+    // Client-side validation
     const cleaned = phoneNumber.replace(/\D/g, '');
     if (cleaned.length !== 10) {
       setError('Please enter a valid 10-digit phone number');
       return;
     }
 
-    // Mock: In real app, call API to send OTP
+    setLoading(true);
     setError('');
-    setShowOTP(true);
-    setResendTimer(60);
+
+    try {
+      // Format to E.164
+      const e164Phone = `+1${cleaned}`;
+
+      const response = await phoneInitiate({ phoneNumber: e164Phone });
+
+      if (response.status === HTTP_CODES_ENUM.OK) {
+        setShowOTP(true);
+        setResendTimer(60);
+      } else if ('data' in response && response.data?.message) {
+        const message = Array.isArray(response.data.message)
+          ? response.data.message[0]
+          : response.data.message;
+        setError(message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifyOTP = () => {
+  const handleVerifyOTP = async () => {
     if (otp.length !== 6) {
       setError('Please enter the complete 6-digit code');
       return;
     }
 
-    // Mock: In real app, call API to verify OTP
-    // On success, redirect to main app
-    router.replace('/(tabs)');
+    setLoading(true);
+    setError('');
+
+    try {
+      const cleaned = phoneNumber.replace(/\D/g, '');
+      const e164Phone = `+1${cleaned}`;
+
+      const response = await phoneVerify({ phoneNumber: e164Phone, code: otp });
+
+      if (response.status === HTTP_CODES_ENUM.NO_CONTENT || response.status === HTTP_CODES_ENUM.OK) {
+        // Phone verified successfully!
+        console.log('Phone verification successful, clearing onboarding data');
+
+        // Clear onboarding data since we're done
+        await clearOnboardingData();
+
+        // Navigate to main app
+        router.replace('/(tabs)');
+      } else if ('data' in response && response.data?.message) {
+        const message = Array.isArray(response.data.message)
+          ? response.data.message[0]
+          : response.data.message;
+        setError(message || 'Invalid OTP code');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResendOTP = () => {
+  const handleResendOTP = async () => {
     if (resendTimer > 0) return;
 
-    // Mock: In real app, call API to resend OTP
     setOtp('');
-    setResendTimer(60);
     setError('');
+    await handleSendOTP();
   };
 
   const formatPhoneNumber = (text: string) => {
@@ -107,11 +158,11 @@ export default function Step4Screen() {
             <Button
               size="lg"
               onPress={showOTP ? handleVerifyOTP : handleSendOTP}
-              isDisabled={showOTP && otp.length !== 6}
+              isDisabled={(showOTP && otp.length !== 6) || loading}
               className="flex-1"
             >
               <ButtonText className="font-outfit-semibold">
-                {showOTP ? 'Verify' : 'Send Code'}
+                {loading ? (showOTP ? 'Verifying...' : 'Sending...') : (showOTP ? 'Verify' : 'Send Code')}
               </ButtonText>
             </Button>
           </HStack>
