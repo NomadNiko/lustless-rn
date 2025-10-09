@@ -40,7 +40,7 @@ export default function SignUpLayout() {
               source={require('@/assets/images/logo_dark.png')}
               alt="Lustless Logo"
               className="w-32 h-10"
-              contentFit="contain"
+              style={{ resizeMode: 'contain' }}
             />
           </Box>
 

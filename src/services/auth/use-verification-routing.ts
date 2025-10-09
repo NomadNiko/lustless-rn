@@ -59,9 +59,9 @@ export function useVerificationRouting(options?: { enabled?: boolean }) {
 export function getVerificationRoute(
   user: any,
   verificationStatus: any
-): string {
+) {
   if (!user) {
-    return '/(auth)';
+    return '/(auth)' as const;
   }
 
   const isFullyVerified =
@@ -69,7 +69,7 @@ export function getVerificationRoute(
     verificationStatus?.isFullyVerified;
 
   if (isFullyVerified) {
-    return '/(tabs)';
+    return '/(tabs)' as const;
   }
 
   const currentStep = user.verificationStep || verificationStatus?.currentStep;
@@ -80,12 +80,12 @@ export function getVerificationRoute(
   switch (currentStep) {
     case 'email_verified':
       console.log('Routing to step2 for ID verification');
-      return '/(auth)/sign-up/step2';
+      return '/(auth)/sign-up/step2' as const;
     case 'identity_verified':
       console.log('Routing to step4 for phone verification');
-      return '/(auth)/sign-up/step4';
+      return '/(auth)/sign-up/step4' as const;
     default:
       console.log('Routing to step1 (default)');
-      return '/(auth)/sign-up/step1';
+      return '/(auth)/sign-up/step1' as const;
   }
 }

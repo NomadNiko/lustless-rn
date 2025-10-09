@@ -1,27 +1,34 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { VStack } from '@/components/ui/vstack';
-import { HStack } from '@/components/ui/hstack';
-import { Heading } from '@/components/ui/heading';
-import { Text } from '@/components/ui/text';
-import { Input, InputField } from '@/components/ui/input';
-import { Button, ButtonText } from '@/components/ui/button';
-import { FormControl, FormControlError, FormControlErrorText } from '@/components/ui/form-control';
-import { Alert, AlertIcon, AlertText } from '@/components/ui/alert';
-import { InfoIcon } from '@/components/ui/icon';
-import { OTPInput } from '@/src/components/OTPInput';
-import { useAuthPhoneInitiateService, useAuthPhoneVerifyService } from '@/src/services/api/services/auth';
-import HTTP_CODES_ENUM from '@/src/services/api/types/http-codes';
-import { clearOnboardingData } from '@/src/services/auth/onboarding-storage';
+import { Alert, AlertIcon, AlertText } from "@/components/ui/alert";
+import { Button, ButtonText } from "@/components/ui/button";
+import {
+  FormControl,
+  FormControlError,
+  FormControlErrorText,
+} from "@/components/ui/form-control";
+import { Heading } from "@/components/ui/heading";
+import { HStack } from "@/components/ui/hstack";
+import { InfoIcon } from "@/components/ui/icon";
+import { Input, InputField } from "@/components/ui/input";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { OTPInput } from "@/src/components/OTPInput";
+import {
+  useAuthPhoneInitiateService,
+  useAuthPhoneVerifyService,
+} from "@/src/services/api/services/auth";
+import HTTP_CODES_ENUM from "@/src/services/api/types/http-codes";
+import { clearOnboardingData } from "@/src/services/auth/onboarding-storage";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 
 export default function Step4Screen() {
   const router = useRouter();
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [showOTP, setShowOTP] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const phoneInitiate = useAuthPhoneInitiateService();
@@ -37,14 +44,14 @@ export default function Step4Screen() {
 
   const handleSendOTP = async () => {
     // Client-side validation
-    const cleaned = phoneNumber.replace(/\D/g, '');
+    const cleaned = phoneNumber.replace(/\D/g, "");
     if (cleaned.length !== 10) {
-      setError('Please enter a valid 10-digit phone number');
+      setError("Please enter a valid 10-digit phone number");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       // Format to E.164
@@ -55,14 +62,14 @@ export default function Step4Screen() {
       if (response.status === HTTP_CODES_ENUM.OK) {
         setShowOTP(true);
         setResendTimer(60);
-      } else if ('data' in response && response.data?.message) {
+      } else if ("data" in response && response.data?.message) {
         const message = Array.isArray(response.data.message)
           ? response.data.message[0]
           : response.data.message;
-        setError(message || 'Failed to send OTP');
+        setError(message || "Failed to send OTP");
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -70,36 +77,39 @@ export default function Step4Screen() {
 
   const handleVerifyOTP = async () => {
     if (otp.length !== 6) {
-      setError('Please enter the complete 6-digit code');
+      setError("Please enter the complete 6-digit code");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const cleaned = phoneNumber.replace(/\D/g, '');
+      const cleaned = phoneNumber.replace(/\D/g, "");
       const e164Phone = `+1${cleaned}`;
 
       const response = await phoneVerify({ phoneNumber: e164Phone, code: otp });
 
-      if (response.status === HTTP_CODES_ENUM.NO_CONTENT || response.status === HTTP_CODES_ENUM.OK) {
+      if (
+        response.status === HTTP_CODES_ENUM.NO_CONTENT ||
+        response.status === HTTP_CODES_ENUM.OK
+      ) {
         // Phone verified successfully!
-        console.log('Phone verification successful, clearing onboarding data');
+        console.log("Phone verification successful, clearing onboarding data");
 
         // Clear onboarding data since we're done
         await clearOnboardingData();
 
         // Navigate to main app
-        router.replace('/(tabs)');
-      } else if ('data' in response && response.data?.message) {
+        router.replace("/(tabs)");
+      } else if ("data" in response && response.data?.message) {
         const message = Array.isArray(response.data.message)
           ? response.data.message[0]
           : response.data.message;
-        setError(message || 'Invalid OTP code');
+        setError(message || "Invalid OTP code");
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -108,25 +118,25 @@ export default function Step4Screen() {
   const handleResendOTP = async () => {
     if (resendTimer > 0) return;
 
-    setOtp('');
-    setError('');
+    setOtp("");
+    setError("");
     await handleSendOTP();
   };
 
   const formatPhoneNumber = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
+    const cleaned = text.replace(/\D/g, "");
     const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
     if (match) {
       return !match[2]
         ? match[1]
-        : `(${match[1]}) ${match[2]}${match[3] ? `-${match[3]}` : ''}`;
+        : `(${match[1]}) ${match[2]}${match[3] ? `-${match[3]}` : ""}`;
     }
     return text;
   };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <ScrollView
@@ -142,8 +152,8 @@ export default function Step4Screen() {
               onPress={() => {
                 if (showOTP) {
                   setShowOTP(false);
-                  setOtp('');
-                  setError('');
+                  setOtp("");
+                  setError("");
                 } else {
                   router.back();
                 }
@@ -152,7 +162,7 @@ export default function Step4Screen() {
               className="flex-1"
             >
               <ButtonText className="font-outfit-semibold">
-                {showOTP ? 'Change Phone' : 'Back'}
+                {showOTP ? "Change Phone" : "Back"}
               </ButtonText>
             </Button>
             <Button
@@ -162,7 +172,13 @@ export default function Step4Screen() {
               className="flex-1"
             >
               <ButtonText className="font-outfit-semibold">
-                {loading ? (showOTP ? 'Verifying...' : 'Sending...') : (showOTP ? 'Verify' : 'Send Code')}
+                {loading
+                  ? showOTP
+                    ? "Verifying..."
+                    : "Sending..."
+                  : showOTP
+                  ? "Verify"
+                  : "Send Code"}
               </ButtonText>
             </Button>
           </HStack>
@@ -174,7 +190,7 @@ export default function Step4Screen() {
             </Heading>
             <Text size="md" className="text-typography-500 font-outfit">
               {!showOTP
-                ? 'We\'ll send you a verification code'
+                ? "We'll send you a verification code"
                 : `Enter the 6-digit code sent to ${phoneNumber}`}
             </Text>
           </VStack>
@@ -183,7 +199,8 @@ export default function Step4Screen() {
           <Alert action="info" variant="outline">
             <AlertIcon as={InfoIcon} />
             <AlertText className="flex-1">
-              This helps us keep Lustless safe and ensures you&apos;re a real person.
+              This helps us keep Lustless safe and ensures you&apos;re a real
+              person.
             </AlertText>
           </Alert>
 
@@ -198,7 +215,7 @@ export default function Step4Screen() {
                     value={phoneNumber}
                     onChangeText={(text) => {
                       setPhoneNumber(formatPhoneNumber(text));
-                      if (error) setError('');
+                      if (error) setError("");
                     }}
                     keyboardType="phone-pad"
                     maxLength={14}
@@ -219,7 +236,7 @@ export default function Step4Screen() {
                     value={otp}
                     onChange={(value) => {
                       setOtp(value);
-                      if (error) setError('');
+                      if (error) setError("");
                     }}
                     isInvalid={!!error}
                   />
@@ -240,19 +257,16 @@ export default function Step4Screen() {
                       Resend in {resendTimer}s
                     </Text>
                   ) : (
-                    <Button
-                      variant="link"
-                      size="md"
-                      onPress={handleResendOTP}
-                    >
-                      <ButtonText className="font-outfit-medium">Resend Code</ButtonText>
+                    <Button variant="link" size="md" onPress={handleResendOTP}>
+                      <ButtonText className="font-outfit-medium">
+                        Resend Code
+                      </ButtonText>
                     </Button>
                   )}
                 </VStack>
               </VStack>
             )}
           </VStack>
-
         </VStack>
       </ScrollView>
     </KeyboardAvoidingView>

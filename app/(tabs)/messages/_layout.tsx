@@ -1,17 +1,15 @@
 import { Stack } from "expo-router";
 
-export default function AuthLayout() {
+export default function MessagesLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
-        contentStyle: { backgroundColor: "#000000" },
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="sign-in" />
-      <Stack.Screen name="sign-up" />
+      <Stack.Screen name="[id]" />
     </Stack>
   );
 }

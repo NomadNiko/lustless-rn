@@ -1,31 +1,45 @@
-import { useState, useEffect, useContext } from 'react';
-import { useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { VStack } from '@/components/ui/vstack';
-import { Box } from '@/components/ui/box';
-import { Heading } from '@/components/ui/heading';
-import { Text } from '@/components/ui/text';
-import { Input, InputField, InputSlot, InputIcon } from '@/components/ui/input';
-import { Button, ButtonText } from '@/components/ui/button';
-import { FormControl, FormControlError, FormControlErrorText } from '@/components/ui/form-control';
-import { EyeIcon, EyeOffIcon } from '@/components/ui/icon';
-import { Image } from '@/components/ui/image';
-import { OTPInput } from '@/src/components/OTPInput';
-import { useAuthInitiateLoginService, useAuthVerifyLoginService } from '@/src/services/api/services/auth';
-import { AuthTokensContext, AuthActionsContext, AuthContext } from '@/src/services/auth/auth-context';
-import HTTP_CODES_ENUM from '@/src/services/api/types/http-codes';
-import { getVerificationRoute } from '@/src/services/auth/use-verification-routing';
+import { Box } from "@/components/ui/box";
+import { Button, ButtonText } from "@/components/ui/button";
+import {
+  FormControl,
+  FormControlError,
+  FormControlErrorText,
+} from "@/components/ui/form-control";
+import { Heading } from "@/components/ui/heading";
+import { EyeIcon, EyeOffIcon } from "@/components/ui/icon";
+import { Image } from "@/components/ui/image";
+import { Input, InputField, InputIcon, InputSlot } from "@/components/ui/input";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { OTPInput } from "@/src/components/OTPInput";
+import {
+  useAuthInitiateLoginService,
+  useAuthVerifyLoginService,
+} from "@/src/services/api/services/auth";
+import HTTP_CODES_ENUM from "@/src/services/api/types/http-codes";
+import {
+  AuthActionsContext,
+  AuthTokensContext,
+} from "@/src/services/auth/auth-context";
+import { getVerificationRoute } from "@/src/services/auth/use-verification-routing";
+import { useRouter } from "expo-router";
+import { useContext, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignInScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showOTP, setShowOTP] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; otp?: string }>({});
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    otp?: string;
+  }>({});
 
   const initiateLogin = useAuthInitiateLoginService();
   const verifyLogin = useAuthVerifyLoginService();
@@ -37,13 +51,13 @@ export default function SignInScreen() {
     const newErrors: typeof errors = {};
 
     if (!email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = "Invalid email format";
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -62,7 +76,7 @@ export default function SignInScreen() {
 
         if (data.skipOtp && data.loginData) {
           // Skip OTP, login directly with tokens
-          console.log('Login successful without OTP, setting tokens...');
+          console.log("Login successful without OTP, setting tokens...");
           setTokensInfo({
             token: data.loginData.token,
             refreshToken: data.loginData.refreshToken,
@@ -70,26 +84,41 @@ export default function SignInScreen() {
           });
 
           // Reload user data with new tokens
-          console.log('Reloading user data...');
-          const { user: loadedUser, verificationStatus: loadedVerificationStatus } = await loadData();
-          console.log('User data loaded:', loadedUser);
+          console.log("Reloading user data...");
+          const {
+            user: loadedUser,
+            verificationStatus: loadedVerificationStatus,
+          } = await loadData();
+          console.log("User data loaded:", loadedUser);
+
+          // Check if user data was loaded successfully
+          if (!loadedUser) {
+            console.error("Failed to load user data after login");
+            setErrors({
+              email: "Failed to load account data. Please try again.",
+            });
+            return;
+          }
 
           // Navigate to correct route based on verification status
-          const route = getVerificationRoute(loadedUser, loadedVerificationStatus);
-          console.log('Navigating to:', route);
+          const route = getVerificationRoute(
+            loadedUser,
+            loadedVerificationStatus
+          );
+          console.log("Navigating to:", route);
           router.replace(route);
         } else {
           // Show OTP screen
           setShowOTP(true);
         }
-      } else if ('data' in response && response.data?.message) {
+      } else if ("data" in response && response.data?.message) {
         const message = Array.isArray(response.data.message)
           ? response.data.message[0]
           : response.data.message;
-        setErrors({ email: message || 'Login failed' });
+        setErrors({ email: message || "Login failed" });
       }
     } catch (error) {
-      setErrors({ email: 'Network error. Please try again.' });
+      setErrors({ email: "Network error. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -97,7 +126,7 @@ export default function SignInScreen() {
 
   const handleVerifyOTP = async () => {
     if (otp.length !== 6) {
-      setErrors({ otp: 'Please enter the complete 6-digit code' });
+      setErrors({ otp: "Please enter the complete 6-digit code" });
       return;
     }
 
@@ -109,7 +138,7 @@ export default function SignInScreen() {
 
       if (response.status === HTTP_CODES_ENUM.OK) {
         const { data } = response;
-        console.log('OTP verification successful, setting tokens...');
+        console.log("OTP verification successful, setting tokens...");
         setTokensInfo({
           token: data.token,
           refreshToken: data.refreshToken,
@@ -117,22 +146,38 @@ export default function SignInScreen() {
         });
 
         // Reload user data with new tokens
-        console.log('Reloading user data...');
-        const { user: loadedUser, verificationStatus: loadedVerificationStatus } = await loadData();
-        console.log('User data loaded:', loadedUser);
+        console.log("Reloading user data...");
+        const {
+          user: loadedUser,
+          verificationStatus: loadedVerificationStatus,
+        } = await loadData();
+        console.log("User data loaded:", loadedUser);
+
+        // Check if user data was loaded successfully
+        if (!loadedUser) {
+          console.error("Failed to load user data after OTP verification");
+          setErrors({ otp: "Failed to load account data. Please try again." });
+          return;
+        }
 
         // Navigate to correct route based on verification status
-        const route = getVerificationRoute(loadedUser, loadedVerificationStatus);
-        console.log('Navigating to:', route);
+        const route = getVerificationRoute(
+          loadedUser,
+          loadedVerificationStatus
+        );
+        console.log("Navigating to:", route);
         router.replace(route);
-      } else if ('data' in response && response.data?.message) {
-        const message = Array.isArray(response.data.message)
-          ? response.data.message[0]
-          : response.data.message;
-        setErrors({ otp: message || 'Invalid OTP code' });
+      } else if ("data" in response && response.data) {
+        const data = response.data;
+        if ("message" in data && data.message) {
+          const message = Array.isArray(data.message)
+            ? data.message[0]
+            : data.message;
+          setErrors({ otp: message || "Invalid OTP code" });
+        }
       }
     } catch (error) {
-      setErrors({ otp: 'Network error. Please try again.' });
+      setErrors({ otp: "Network error. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -141,7 +186,7 @@ export default function SignInScreen() {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -153,18 +198,21 @@ export default function SignInScreen() {
             {/* Header */}
             <VStack space="lg" className="items-center">
               <Image
-                source={require('@/assets/images/logo_dark.png')}
+                source={require("@/assets/images/logo_dark.png")}
                 alt="Lustless Logo"
                 className="w-48 h-16"
-                contentFit="contain"
+                style={{ resizeMode: "contain" }}
               />
               <VStack space="xs" className="items-center">
                 <Heading size="3xl" className="text-typography-900 font-ovo">
-                  {!showOTP ? 'Welcome Back' : 'Enter Verification Code'}
+                  {!showOTP ? "Welcome Back" : "Enter Verification Code"}
                 </Heading>
-                <Text size="lg" className="text-typography-500 text-center font-outfit">
+                <Text
+                  size="lg"
+                  className="text-center text-typography-500 font-outfit"
+                >
                   {!showOTP
-                    ? 'Sign in to continue'
+                    ? "Sign in to continue"
                     : `We sent a 6-digit code to ${email}`}
                 </Text>
               </VStack>
@@ -176,13 +224,18 @@ export default function SignInScreen() {
                 <>
                   {/* Email Input */}
                   <FormControl isInvalid={!!errors.email}>
-                    <Input size="lg" variant="outline" isInvalid={!!errors.email}>
+                    <Input
+                      size="lg"
+                      variant="outline"
+                      isInvalid={!!errors.email}
+                    >
                       <InputField
                         placeholder="Email address"
                         value={email}
                         onChangeText={(text) => {
                           setEmail(text);
-                          if (errors.email) setErrors({ ...errors, email: undefined });
+                          if (errors.email)
+                            setErrors({ ...errors, email: undefined });
                         }}
                         keyboardType="email-address"
                         autoCapitalize="none"
@@ -191,22 +244,29 @@ export default function SignInScreen() {
                     </Input>
                     {errors.email && (
                       <FormControlError>
-                        <FormControlErrorText>{errors.email}</FormControlErrorText>
+                        <FormControlErrorText>
+                          {errors.email}
+                        </FormControlErrorText>
                       </FormControlError>
                     )}
                   </FormControl>
 
                   {/* Password Input */}
                   <FormControl isInvalid={!!errors.password}>
-                    <Input size="lg" variant="outline" isInvalid={!!errors.password}>
+                    <Input
+                      size="lg"
+                      variant="outline"
+                      isInvalid={!!errors.password}
+                    >
                       <InputField
                         placeholder="Password"
                         value={password}
                         onChangeText={(text) => {
                           setPassword(text);
-                          if (errors.password) setErrors({ ...errors, password: undefined });
+                          if (errors.password)
+                            setErrors({ ...errors, password: undefined });
                         }}
-                        type={showPassword ? 'text' : 'password'}
+                        type={showPassword ? "text" : "password"}
                         autoCapitalize="none"
                         autoComplete="password"
                       />
@@ -219,7 +279,9 @@ export default function SignInScreen() {
                     </Input>
                     {errors.password && (
                       <FormControlError>
-                        <FormControlErrorText>{errors.password}</FormControlErrorText>
+                        <FormControlErrorText>
+                          {errors.password}
+                        </FormControlErrorText>
                       </FormControlError>
                     )}
                   </FormControl>
@@ -227,7 +289,9 @@ export default function SignInScreen() {
                   {/* Forgot Password */}
                   <Box className="items-end">
                     <Button variant="link" size="md">
-                      <ButtonText className="font-outfit">Forgot Password?</ButtonText>
+                      <ButtonText className="font-outfit">
+                        Forgot Password?
+                      </ButtonText>
                     </Button>
                   </Box>
                 </>
@@ -240,13 +304,16 @@ export default function SignInScreen() {
                       value={otp}
                       onChange={(value) => {
                         setOtp(value);
-                        if (errors.otp) setErrors({ ...errors, otp: undefined });
+                        if (errors.otp)
+                          setErrors({ ...errors, otp: undefined });
                       }}
                       isInvalid={!!errors.otp}
                     />
                     {errors.otp && (
                       <FormControlError>
-                        <FormControlErrorText>{errors.otp}</FormControlErrorText>
+                        <FormControlErrorText>
+                          {errors.otp}
+                        </FormControlErrorText>
                       </FormControlError>
                     )}
                   </FormControl>
@@ -254,10 +321,12 @@ export default function SignInScreen() {
                   {/* Resend Button */}
                   <VStack space="xs" className="items-center">
                     <Text size="md" className="text-typography-500 font-outfit">
-                      Didn{''}t receive the code?
+                      Didn{""}t receive the code?
                     </Text>
                     <Button variant="link" size="md">
-                      <ButtonText className="font-outfit-medium">Resend Code</ButtonText>
+                      <ButtonText className="font-outfit-medium">
+                        Resend Code
+                      </ButtonText>
                     </Button>
                   </VStack>
                 </VStack>
@@ -268,15 +337,25 @@ export default function SignInScreen() {
             <VStack space="md">
               {!showOTP ? (
                 <>
-                  <Button size="xl" onPress={handleSignIn} className="w-full" isDisabled={loading}>
-                    <ButtonText className="font-outfit-semibold">{loading ? 'Signing In...' : 'Sign In'}</ButtonText>
+                  <Button
+                    size="xl"
+                    onPress={handleSignIn}
+                    className="w-full"
+                    isDisabled={loading}
+                  >
+                    <ButtonText className="font-outfit-semibold">
+                      {loading ? "Signing In..." : "Sign In"}
+                    </ButtonText>
                   </Button>
 
-                  <Text size="md" className="text-center text-typography-500 font-outfit">
-                    Don&apos;t have an account?{' '}
+                  <Text
+                    size="md"
+                    className="text-center text-typography-500 font-outfit"
+                  >
+                    Don&apos;t have an account?{" "}
                     <Text
                       className="text-primary-500 font-outfit-semibold"
-                      onPress={() => router.push('/(auth)/sign-up/step1')}
+                      onPress={() => router.push("/(auth)/sign-up/step1")}
                     >
                       Sign Up
                     </Text>
@@ -290,7 +369,9 @@ export default function SignInScreen() {
                     isDisabled={otp.length !== 6 || loading}
                     className="w-full"
                   >
-                    <ButtonText className="font-outfit-semibold">{loading ? 'Verifying...' : 'Verify & Sign In'}</ButtonText>
+                    <ButtonText className="font-outfit-semibold">
+                      {loading ? "Verifying..." : "Verify & Sign In"}
+                    </ButtonText>
                   </Button>
 
                   <Button
@@ -298,13 +379,15 @@ export default function SignInScreen() {
                     size="xl"
                     onPress={() => {
                       setShowOTP(false);
-                      setOtp('');
+                      setOtp("");
                       setErrors({});
                     }}
                     action="secondary"
                     className="w-full"
                   >
-                    <ButtonText className="font-outfit-semibold">Back to Sign In</ButtonText>
+                    <ButtonText className="font-outfit-semibold">
+                      Back to Sign In
+                    </ButtonText>
                   </Button>
                 </>
               )}

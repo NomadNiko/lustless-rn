@@ -221,7 +221,7 @@ function AuthProvider(props: PropsWithChildren<{}>) {
     }
 
     return { user: userData, verificationStatus: verificationData };
-  }, [fetchBase]);
+  }, [fetchBase, logOut, fetchVerificationStatus]);
 
   useEffect(() => {
     // Only run on mount to check for existing auth session

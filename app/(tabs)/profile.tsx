@@ -1,13 +1,17 @@
-import { useState, useContext } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { VStack } from "@/components/ui/vstack";
-import { HStack } from "@/components/ui/hstack";
-import { Heading } from "@/components/ui/heading";
-import { Text } from "@/components/ui/text";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Divider } from "@/components/ui/divider";
-import { AuthContext, AuthActionsContext } from "@/src/services/auth/auth-context";
+import { Heading } from "@/components/ui/heading";
+import { HStack } from "@/components/ui/hstack";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import {
+  AuthActionsContext,
+  AuthContext,
+} from "@/src/services/auth/auth-context";
+import { useContext, useState } from "react";
+import { ScrollView, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
   const { user, verificationStatus, isLoaded } = useContext(AuthContext);
@@ -27,16 +31,24 @@ export default function ProfileScreen() {
 
   if (!isLoaded) {
     return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView
+        style={styles.container}
+        edges={["top"]}
+        className="bg-background-0"
+      >
+        <VStack className="items-center justify-center flex-1">
           <Text className="text-typography-500 font-outfit">Loading...</Text>
-        </View>
-      </View>
+        </VStack>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView
+      style={styles.container}
+      edges={["top"]}
+      className="bg-background-0"
+    >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -55,7 +67,10 @@ export default function ProfileScreen() {
                   <Text size="sm" className="text-typography-500 font-outfit">
                     Name
                   </Text>
-                  <Text size="lg" className="text-typography-900 font-outfit-semibold">
+                  <Text
+                    size="lg"
+                    className="text-typography-900 font-outfit-semibold"
+                  >
                     {user.firstName} {user.lastName}
                   </Text>
                 </VStack>
@@ -66,7 +81,10 @@ export default function ProfileScreen() {
                   <Text size="sm" className="text-typography-500 font-outfit">
                     Email
                   </Text>
-                  <Text size="lg" className="text-typography-900 font-outfit-semibold">
+                  <Text
+                    size="lg"
+                    className="text-typography-900 font-outfit-semibold"
+                  >
                     {user.email}
                   </Text>
                 </VStack>
@@ -75,15 +93,24 @@ export default function ProfileScreen() {
                   <>
                     <Divider />
                     <VStack space="xs">
-                      <Text size="sm" className="text-typography-500 font-outfit">
+                      <Text
+                        size="sm"
+                        className="text-typography-500 font-outfit"
+                      >
                         Phone
                       </Text>
                       <HStack space="sm" className="items-center">
-                        <Text size="lg" className="text-typography-900 font-outfit-semibold">
+                        <Text
+                          size="lg"
+                          className="text-typography-900 font-outfit-semibold"
+                        >
                           {user.phoneNumber}
                         </Text>
                         {user.phoneVerified && (
-                          <Text size="xs" className="text-success-600 font-outfit">
+                          <Text
+                            size="xs"
+                            className="text-success-600 font-outfit"
+                          >
                             ✓ Verified
                           </Text>
                         )}
@@ -98,8 +125,13 @@ export default function ProfileScreen() {
                   <Text size="sm" className="text-typography-500 font-outfit">
                     Verification Status
                   </Text>
-                  <Text size="lg" className="text-typography-900 font-outfit-semibold">
-                    {verificationStatus?.currentStep?.replace(/_/g, " ").toUpperCase() || "Unknown"}
+                  <Text
+                    size="lg"
+                    className="text-typography-900 font-outfit-semibold"
+                  >
+                    {verificationStatus?.currentStep
+                      ?.replace(/_/g, " ")
+                      .toUpperCase() || "Unknown"}
                   </Text>
                   {verificationStatus?.isFullyVerified && (
                     <Text size="xs" className="text-success-600 font-outfit">
@@ -112,10 +144,16 @@ export default function ProfileScreen() {
                   <>
                     <Divider />
                     <VStack space="xs">
-                      <Text size="sm" className="text-typography-500 font-outfit">
+                      <Text
+                        size="sm"
+                        className="text-typography-500 font-outfit"
+                      >
                         Identity Match Score
                       </Text>
-                      <Text size="lg" className="text-typography-900 font-outfit-semibold">
+                      <Text
+                        size="lg"
+                        className="text-typography-900 font-outfit-semibold"
+                      >
                         {user.faceVerificationScore.toFixed(1)}%
                       </Text>
                     </VStack>
@@ -151,23 +189,18 @@ export default function ProfileScreen() {
           </VStack>
         </VStack>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FEFEFF",
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingTop: 12,
+    paddingBottom: 32,
   },
 });

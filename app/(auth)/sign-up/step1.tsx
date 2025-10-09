@@ -1,28 +1,43 @@
-import { useState, useContext } from 'react';
-import { useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { VStack } from '@/components/ui/vstack';
-import { Heading } from '@/components/ui/heading';
-import { Text } from '@/components/ui/text';
-import { Input, InputField, InputSlot, InputIcon } from '@/components/ui/input';
-import { Button, ButtonText } from '@/components/ui/button';
-import { Checkbox, CheckboxIndicator, CheckboxIcon, CheckboxLabel } from '@/components/ui/checkbox';
-import { FormControl, FormControlError, FormControlErrorText } from '@/components/ui/form-control';
-import { EyeIcon, EyeOffIcon } from '@/components/ui/icon';
-import { CheckIcon } from '@/components/ui/icon';
-import { useAuthSignupStep1Service } from '@/src/services/api/services/auth';
-import { AuthTokensContext, AuthActionsContext } from '@/src/services/auth/auth-context';
-import HTTP_CODES_ENUM from '@/src/services/api/types/http-codes';
+import { Button, ButtonText } from "@/components/ui/button";
+import {
+    Checkbox,
+    CheckboxIcon,
+    CheckboxIndicator,
+    CheckboxLabel,
+} from "@/components/ui/checkbox";
+import {
+    FormControl,
+    FormControlError,
+    FormControlErrorText,
+} from "@/components/ui/form-control";
+import { Heading } from "@/components/ui/heading";
+import { CheckIcon, EyeIcon, EyeOffIcon } from "@/components/ui/icon";
+import { Input, InputField, InputIcon, InputSlot } from "@/components/ui/input";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { useAuthSignupStep1Service } from "@/src/services/api/services/auth";
+import HTTP_CODES_ENUM from "@/src/services/api/types/http-codes";
+import {
+    AuthActionsContext,
+    AuthTokensContext,
+} from "@/src/services/auth/auth-context";
+import { useRouter } from "expo-router";
+import { useContext, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 
 export default function Step1Screen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; terms?: string }>({});
-
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    terms?: string;
+  }>({});
+ 
   const signupStep1 = useAuthSignupStep1Service();
   const { setTokensInfo } = useContext(AuthTokensContext);
   const { loadData } = useContext(AuthActionsContext);
@@ -32,19 +47,19 @@ export default function Step1Screen() {
     const newErrors: typeof errors = {};
 
     if (!email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = "Invalid email format";
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Password must be at least 6 characters";
     }
 
     if (!agreedToTerms) {
-      newErrors.terms = 'You must agree to the terms';
+      newErrors.terms = "You must agree to the terms";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -58,9 +73,12 @@ export default function Step1Screen() {
     try {
       const response = await signupStep1({ email, password });
 
-      if (response.status === HTTP_CODES_ENUM.OK || response.status === HTTP_CODES_ENUM.CREATED) {
+      if (
+        response.status === HTTP_CODES_ENUM.OK ||
+        response.status === HTTP_CODES_ENUM.CREATED
+      ) {
         const { data } = response;
-        console.log('Signup successful, setting tokens...');
+        console.log("Signup successful, setting tokens...");
         // Save tokens immediately - user is logged in but unverified
         setTokensInfo({
           token: data.token,
@@ -69,19 +87,32 @@ export default function Step1Screen() {
         });
 
         // Reload user data with new tokens
-        console.log('Reloading user data...');
+        console.log("Reloading user data...");
         const { user: loadedUser } = await loadData();
-        console.log('User data loaded:', loadedUser, 'proceeding to step 2');
+        console.log("User data loaded:", loadedUser);
 
-        router.push('/(auth)/sign-up/step2');
-      } else if ('data' in response && response.data?.message) {
-        const message = Array.isArray(response.data.message)
-          ? response.data.message[0]
-          : response.data.message;
-        setErrors({ email: message || 'Signup failed' });
+        // Check if user data was loaded successfully
+        if (!loadedUser) {
+          console.error("Failed to load user data after signup");
+          setErrors({
+            email: "Failed to load account data. Please try signing in.",
+          });
+          return;
+        }
+
+        console.log("Proceeding to step 2");
+        router.push("/(auth)/sign-up/step2");
+      } else if ("data" in response && response.data) {
+        const data = response.data;
+        if ("message" in data && data.message) {
+          const message = Array.isArray(data.message)
+            ? data.message[0]
+            : data.message;
+          setErrors({ email: message || "Signup failed" });
+        }
       }
     } catch (error) {
-      setErrors({ email: 'Network error. Please try again.' });
+      setErrors({ email: "Network error. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -89,7 +120,7 @@ export default function Step1Screen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <ScrollView
@@ -111,17 +142,14 @@ export default function Step1Screen() {
           <VStack space="lg" className="flex-1">
             {/* Email Input */}
             <FormControl isInvalid={!!errors.email}>
-              <Input
-                size="lg"
-                variant="outline"
-                isInvalid={!!errors.email}
-              >
+              <Input size="lg" variant="outline" isInvalid={!!errors.email}>
                 <InputField
                   placeholder="Email address"
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
-                    if (errors.email) setErrors({ ...errors, email: undefined });
+                    if (errors.email)
+                      setErrors({ ...errors, email: undefined });
                   }}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -137,19 +165,16 @@ export default function Step1Screen() {
 
             {/* Password Input */}
             <FormControl isInvalid={!!errors.password}>
-              <Input
-                size="lg"
-                variant="outline"
-                isInvalid={!!errors.password}
-              >
+              <Input size="lg" variant="outline" isInvalid={!!errors.password}>
                 <InputField
                   placeholder="Password (min 6 characters)"
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
-                    if (errors.password) setErrors({ ...errors, password: undefined });
+                    if (errors.password)
+                      setErrors({ ...errors, password: undefined });
                   }}
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   autoCapitalize="none"
                   autoComplete="password"
                 />
@@ -179,10 +204,14 @@ export default function Step1Screen() {
                   <CheckboxIcon as={CheckIcon} />
                 </CheckboxIndicator>
                 <CheckboxLabel className="text-md font-outfit">
-                  I agree to the{' '}
-                  <Text className="text-primary-500 font-outfit-semibold">Terms of Service</Text>
-                  {' '}and{' '}
-                  <Text className="text-primary-500 font-outfit-semibold">Privacy Policy</Text>
+                  I agree to the{" "}
+                  <Text className="text-primary-500 font-outfit-semibold">
+                    Terms of Service
+                  </Text>{" "}
+                  and{" "}
+                  <Text className="text-primary-500 font-outfit-semibold">
+                    Privacy Policy
+                  </Text>
                 </CheckboxLabel>
               </Checkbox>
               {errors.terms && (
@@ -200,15 +229,20 @@ export default function Step1Screen() {
             className="w-full"
             isDisabled={loading}
           >
-            <ButtonText className="font-outfit-semibold">{loading ? 'Creating Account...' : 'Continue'}</ButtonText>
+            <ButtonText className="font-outfit-semibold">
+              {loading ? "Creating Account..." : "Continue"}
+            </ButtonText>
           </Button>
 
           {/* Sign In Link */}
-          <Text size="md" className="text-center text-typography-500 font-outfit">
-            Already have an account?{' '}
+          <Text
+            size="md"
+            className="text-center text-typography-500 font-outfit"
+          >
+            Already have an account?{" "}
             <Text
               className="text-primary-500 font-outfit-semibold"
-              onPress={() => router.push('/(auth)/sign-in')}
+              onPress={() => router.push("/(auth)/sign-in")}
             >
               Sign In
             </Text>
